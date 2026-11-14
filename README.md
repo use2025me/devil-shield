@@ -22,6 +22,7 @@ Allowed lookups are passed to the network's own lookup service (with public fall
 
 Protection lists update automatically every day:
 - [HaGeZi Threat Intelligence Feeds](https://github.com/hagezi/dns-blocklists) (mini)
+- Phishing and URLhaus lists via [malware-filter](https://gitlab.com/malware-filter)
 - [URLhaus](https://urlhaus.abuse.ch/) by abuse.ch
 - Family filter only: HaGeZi NSFW and gambling lists
 

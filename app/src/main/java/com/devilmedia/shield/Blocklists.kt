@@ -63,9 +63,8 @@ object Blocklists {
     private val SECURITY_SOURCES = listOf(
         Source(
             "HaGeZi threat feeds", listOf(
-                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.mini.txt",
-                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/tif.mini.txt",
-                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.medium.txt"
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/tif.mini-onlydomains.txt"
             )
         ),
         Source(
@@ -86,15 +85,14 @@ object Blocklists {
     private val FAMILY_SOURCES = listOf(
         Source(
             "Adult sites", listOf(
-                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nsfw.txt",
-                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/nsfw.txt"
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/nsfw-onlydomains.txt"
             )
         ),
         Source(
             "Gambling sites", listOf(
-                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/gambling.mini.txt",
-                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/gambling.txt",
-                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/gambling.txt"
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/gambling.mini-onlydomains.txt"
             )
         )
     )

@@ -5,11 +5,14 @@ import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 
-/** Turns protection back on after the device restarts, if it was on before. */
+/** Turns protection back on after the device restarts or the app updates, if it was on before. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
-        if (action != Intent.ACTION_BOOT_COMPLETED && action != "android.intent.action.QUICKBOOT_POWERON") return
+        if (action != Intent.ACTION_BOOT_COMPLETED &&
+            action != "android.intent.action.QUICKBOOT_POWERON" &&
+            action != Intent.ACTION_MY_PACKAGE_REPLACED // switch back on after an app update
+        ) return
         if (!Prefs(context).enabled) return
         if (VpnService.prepare(context) != null) return // permission was taken back
         try {
