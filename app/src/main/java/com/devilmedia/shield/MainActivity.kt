@@ -90,6 +90,11 @@ class MainActivity : ShieldScreen() {
             else
                 "Devil Shield is quietly blocking known threats. Your apps keep working normally."
             toggle.text = "Turn protection off"
+        } else if (otherVpnActive()) {
+            circle.text = "Another VPN\nis running"
+            message.text = "Another VPN app (like Surfshark) is on, and Android only allows one at a time. " +
+                "You can still use the Health check below. Built-in VPN support is coming soon, so you can have both."
+            toggle.text = "Use Devil Shield instead"
         } else {
             circle.text = "Protection\nis off"
             message.text = if (ShieldVpnService.revoked)
@@ -117,6 +122,22 @@ class MainActivity : ShieldScreen() {
             }
             return
         }
+        if (otherVpnActive()) {
+            dialog()
+                .setTitle("Switch to Devil Shield?")
+                .setMessage(
+                    "Your other VPN app will be switched off while Devil Shield is on, because Android only " +
+                        "allows one at a time. You can switch back whenever you like."
+                )
+                .setPositiveButton("Switch") { _, _ -> askPermissionAndStart() }
+                .setNegativeButton("Keep my VPN", null)
+                .show()
+            return
+        }
+        askPermissionAndStart()
+    }
+
+    private fun askPermissionAndStart() {
         val permission = try {
             VpnService.prepare(this)
         } catch (_: Exception) {

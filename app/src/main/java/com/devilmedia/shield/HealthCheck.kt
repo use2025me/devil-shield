@@ -46,6 +46,13 @@ object HealthCheck {
         // Protection
         if (ShieldVpnService.running) {
             out += Finding(Level.GOOD, "Protection is on", "Devil Shield is checking connections against known threats.")
+        } else if (ctx.otherVpnActive()) {
+            out += Finding(
+                Level.WATCH, "Another VPN is running",
+                "Devil Shield's blocking is paused while another VPN app (like Surfshark) is on, because Android " +
+                    "only allows one at a time. Everything on this page still works. " +
+                    "Built-in VPN support is coming soon, so you can have both."
+            )
         } else {
             out += Finding(
                 Level.ACTION, "Protection is off",

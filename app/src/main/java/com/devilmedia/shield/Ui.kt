@@ -35,6 +35,18 @@ object Brand {
     const val MUTED = 0xFFAEB4BC.toInt()
 }
 
+/** True if another VPN app (like Surfshark) is running while Devil Shield is off. */
+fun Context.otherVpnActive(): Boolean {
+    if (ShieldVpnService.running) return false
+    return try {
+        val cm = getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+    } catch (_: Exception) {
+        false
+    }
+}
+
 fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
 fun Context.rounded(color: Int, radius: Int = 14, strokeColor: Int = 0, strokeWidth: Int = 3): GradientDrawable =
