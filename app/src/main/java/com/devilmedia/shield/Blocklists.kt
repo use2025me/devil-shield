@@ -56,25 +56,52 @@ object Domains {
 object Blocklists {
 
     // Each inner list is one source; the first address that works is used.
+    private class Source(val name: String, val urls: List<String>)
+
+    // Several independent sources, each with backup addresses, so one being down
+    // doesn't leave the device unprotected. Threat lists only: no ad or tracker lists.
     private val SECURITY_SOURCES = listOf(
-        listOf(
-            "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/tif.mini.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.mini.txt"
+        Source(
+            "HaGeZi threat feeds", listOf(
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.mini.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/tif.mini.txt",
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.medium.txt"
+            )
         ),
-        listOf("https://urlhaus.abuse.ch/downloads/hostfile/")
+        Source(
+            "Malware sites (URLhaus)", listOf(
+                "https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-hosts.txt",
+                "https://curbengh.github.io/malware-filter/urlhaus-filter-hosts.txt",
+                "https://urlhaus.abuse.ch/downloads/hostfile/"
+            )
+        ),
+        Source(
+            "Phishing sites", listOf(
+                "https://malware-filter.gitlab.io/malware-filter/phishing-filter-hosts.txt",
+                "https://curbengh.github.io/malware-filter/phishing-filter-hosts.txt"
+            )
+        )
     )
 
     private val FAMILY_SOURCES = listOf(
-        listOf(
-            "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nsfw.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nsfw.txt"
+        Source(
+            "Adult sites", listOf(
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nsfw.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/nsfw.txt"
+            )
         ),
-        listOf(
-            "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/gambling.mini.txt",
-            "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/gambling.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/gambling.txt"
+        Source(
+            "Gambling sites", listOf(
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/gambling.mini.txt",
+                "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/gambling.txt",
+                "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/domains/gambling.txt"
+            )
         )
     )
+
+    /** What happened on the last download attempt, shown in Settings to help sort out problems. */
+    @Volatile var lastReport: String = ""
+        private set
 
     private const val SECURITY_FILE = "security.txt"
     private const val FAMILY_FILE = "family.txt"
@@ -120,11 +147,22 @@ object Blocklists {
         val p = Prefs(ctx)
         val stale = force || security.isEmpty() || (familyOn && family.isEmpty()) ||
             System.currentTimeMillis() - p.listsUpdatedAt > DAY
-        if (!stale || updating) return false
+        if (!stale) return false
+        // If an update is already running (e.g. started when protection turned on), wait for it.
+        if (updating) {
+            var waited = 0
+            while (updating && waited < 180) {
+                Thread.sleep(1000)
+                waited++
+            }
+            return security.isNotEmpty() && System.currentTimeMillis() - p.listsUpdatedAt < 5 * 60 * 1000
+        }
         updating = true
         try {
-            val sec = download(SECURITY_SOURCES)
+            val report = StringBuilder()
+            val sec = download(SECURITY_SOURCES, report)
             val ok = sec.size > 1000
+            lastReport = report.toString().trim()
             if (ok) {
                 writeSet(file(ctx, SECURITY_FILE), sec)
                 security = sec
@@ -132,7 +170,7 @@ object Blocklists {
                 p.listsCount = sec.size
             }
             if (familyOn) {
-                val fam = download(FAMILY_SOURCES)
+                val fam = download(FAMILY_SOURCES, StringBuilder())
                 if (fam.size > 1000) {
                     writeSet(file(ctx, FAMILY_FILE), fam)
                     family = fam
@@ -146,26 +184,35 @@ object Blocklists {
 
     private fun file(ctx: Context, name: String) = File(ctx.filesDir, name)
 
-    private fun download(groups: List<List<String>>): HashSet<String> {
+    private fun download(sources: List<Source>, report: StringBuilder): HashSet<String> {
         val out = HashSet<String>(200_000)
-        for (urls in groups) {
-            for (u in urls) {
-                if (fetchInto(u, out)) break
+        for (src in sources) {
+            var result = ""
+            for (u in src.urls) {
+                val before = out.size
+                val err = fetchInto(u, out)
+                if (err == null) {
+                    result = "OK (${out.size - before})"
+                    break
+                }
+                result = err
             }
+            report.append(src.name).append(": ").append(result).append('\n')
         }
         return out
     }
 
-    private fun fetchInto(url: String, out: MutableSet<String>): Boolean {
+    /** Adds a list's sites to [out]. Returns null on success, or a short reason it failed. */
+    private fun fetchInto(url: String, out: MutableSet<String>): String? {
+        var c: HttpURLConnection? = null
         return try {
-            val c = URL(url).openConnection() as HttpURLConnection
-            c.connectTimeout = 15_000
-            c.readTimeout = 30_000
-            c.setRequestProperty("User-Agent", "DevilShield")
-            if (c.responseCode != 200) {
-                c.disconnect()
-                return false
-            }
+            c = URL(url).openConnection() as HttpURLConnection
+            c.connectTimeout = 20_000
+            c.readTimeout = 45_000
+            c.instanceFollowRedirects = true
+            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) DevilShield")
+            val code = c.responseCode
+            if (code != 200) return "HTTP $code"
             var added = 0
             c.inputStream.bufferedReader().useLines { lines ->
                 lines.forEach { line ->
@@ -173,10 +220,14 @@ object Blocklists {
                     if (d != null && out.add(d)) added++
                 }
             }
-            c.disconnect()
-            added > 0
-        } catch (_: Exception) {
-            false
+            if (added > 0) null else "empty list"
+        } catch (e: Exception) {
+            e.javaClass.simpleName
+        } finally {
+            try {
+                c?.disconnect()
+            } catch (_: Exception) {
+            }
         }
     }
 

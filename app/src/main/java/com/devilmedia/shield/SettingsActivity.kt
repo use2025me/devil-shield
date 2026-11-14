@@ -63,8 +63,11 @@ class SettingsActivity : ShieldScreen() {
             else "Updated ${timeAgo(p.listsUpdatedAt)}. They update by themselves every day.",
             parent = lists
         )
+        if (Blocklists.lastReport.isNotEmpty()) {
+            text("Last download:\n${Blocklists.lastReport}", 12f, Brand.GREY, parent = lists)
+        }
         button("Update now", parent = lists) {
-            toast("Updating protection lists…")
+            toast("Updating protection lists. This can take up to a minute…")
             worker.execute {
                 Blocklists.loadCached(applicationContext)
                 val ok = Blocklists.updateIfStale(applicationContext, force = true)

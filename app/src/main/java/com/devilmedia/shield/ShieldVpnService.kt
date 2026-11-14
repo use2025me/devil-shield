@@ -123,7 +123,8 @@ class ShieldVpnService : VpnService() {
             Blocklists.loadCached(this)
             Blocklists.updateIfStale(this)
         }
-        s.scheduleWithFixedDelay({ Blocklists.updateIfStale(this) }, 6, 6, TimeUnit.HOURS)
+        // Checks every 15 minutes; it only downloads when the lists are missing or a day old.
+        s.scheduleWithFixedDelay({ Blocklists.updateIfStale(this) }, 15, 15, TimeUnit.MINUTES)
     }
 
     private fun readLoop(fd: ParcelFileDescriptor) {
