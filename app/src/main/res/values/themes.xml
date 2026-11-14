@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DevilShield" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ds_bg</item>
+        <item name="android:statusBarColor">@color/ds_bg</item>
+        <item name="android:navigationBarColor">@color/ds_bg</item>
+        <item name="android:colorAccent">@color/ds_red</item>
+    </style>
+
+    <!-- Pop-ups: dark rounded card -->
+    <style name="Theme.DevilShield.Dialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/dialog_bg</item>
+        <item name="android:colorAccent">@color/ds_red_light</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">#FFC8CDD3</item>
+        <item name="android:buttonBarPositiveButtonStyle">@style/DevilShield.DialogButton.Positive</item>
+        <item name="android:buttonBarNegativeButtonStyle">@style/DevilShield.DialogButton</item>
+    </style>
+
+    <style name="DevilShield.DialogButton" parent="android:Widget.Material.Button.Borderless">
+        <item name="android:textColor">#FFAEB4BC</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="DevilShield.DialogButton.Positive">
+        <item name="android:textColor">@color/ds_red_light</item>
+    </style>
+</resources>
