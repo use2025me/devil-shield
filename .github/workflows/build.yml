@@ -62,7 +62,12 @@ jobs:
             sudo wg show
             exit 1
           }
-          sudo wg show
+          # Proof from the WireGuard server itself that Devil Shield connected and sent data.
+          echo "::notice::VPN test server saw: handshake $(sudo wg show wg0 latest-handshakes | awk '{print $2}'), transfer $(sudo wg show wg0 transfer | awk '{print $2" bytes in, "$3" bytes out"}')"
+          if grep -q 'connectsAndPingsThroughRealWireGuard' app/build/test-results/testDebugUnitTest/*.xml && \
+             grep -A2 'connectsAndPingsThroughRealWireGuard' app/build/test-results/testDebugUnitTest/*.xml | grep -q '<skipped'; then
+            echo "::error::The real VPN test was skipped"; exit 1
+          fi
 
       # The signing key is stored encrypted in signing/release.jks.enc.
       # It can only be unlocked with the SIGNING_PASSWORD repository secret.
