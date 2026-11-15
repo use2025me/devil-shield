@@ -1,6 +1,8 @@
 package com.devilmedia.shield
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import java.util.concurrent.Executors
 
@@ -43,6 +45,45 @@ class SettingsActivity : ShieldScreen() {
             }
         } else {
             button("Turn the family filter on", parent = fam) { turnFamilyOn() }
+        }
+
+        // Private lookups
+        val priv = card()
+        text("Private lookups", 18f, Brand.TEXT, bold = true, parent = priv)
+        text(
+            "Encrypts the website lookups Devil Shield lets through, so your internet provider and people on " +
+                "public Wi-Fi can't see which sites you visit. Uses Cloudflare's private lookup service, and " +
+                "falls back to your network's normal one if needed.",
+            parent = priv
+        )
+        if (p.encryptedDns) {
+            text("Private lookups are on.", 15f, Brand.GREEN, parent = priv)
+            button("Turn private lookups off", parent = priv) {
+                p.encryptedDns = false
+                render()
+            }
+        } else {
+            button("Turn private lookups on", parent = priv) {
+                p.encryptedDns = true
+                render()
+            }
+        }
+
+        // Notices
+        val notices = card()
+        text("Gentle notices", 18f, Brand.TEXT, bold = true, parent = notices)
+        text(
+            "Devil Shield lets you know if a newly installed app needs a look, and can send a short weekly summary.",
+            parent = notices
+        )
+        if (!Notify.canNotify(this) && Build.VERSION.SDK_INT >= 33) {
+            button("Allow notices", parent = notices) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
+            }
+        }
+        button(if (p.weeklySummary) "Weekly summary: on (tap to turn off)" else "Weekly summary: off (tap to turn on)", parent = notices) {
+            p.weeklySummary = !p.weeklySummary
+            render()
         }
 
         // Start automatically

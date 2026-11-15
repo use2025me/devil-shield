@@ -63,6 +63,27 @@ class MainActivity : ShieldScreen() {
 
         toggle.requestFocus()
         UpdateChecker(this).check(manual = false)
+
+        val p = Prefs(this)
+        if (!p.welcomed && !p.enabled) {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+        } else {
+            handleStart(intent)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleStart(intent)
+    }
+
+    /** Turns protection on when asked by the welcome screen or the quick switch. */
+    private fun handleStart(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_START, false) == true) {
+            intent.removeExtra(EXTRA_START)
+            if (!ShieldVpnService.running) onToggle()
+        }
     }
 
     override fun onResume() {
@@ -172,5 +193,6 @@ class MainActivity : ShieldScreen() {
 
     companion object {
         private const val REQUEST_VPN = 1
+        const val EXTRA_START = "start_protection"
     }
 }

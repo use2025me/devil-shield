@@ -1,8 +1,10 @@
 package com.devilmedia.shield
 
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.VpnService
 import android.os.Build
@@ -13,7 +15,6 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.DatagramPacket
 import java.net.DatagramSocket
-import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
@@ -22,6 +23,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import androidx.core.content.ContextCompat
 
 /**
  * The shield. It runs as a local VPN on the device itself (nothing leaves through a
@@ -60,6 +62,20 @@ class ShieldVpnService : VpnService() {
     private var workers: ExecutorService? = null
     private var scheduler: ScheduledExecutorService? = null
     private val appNames = ConcurrentHashMap<Int, Pair<String, String>>()
+
+    // Checks each newly installed app (Android only tells running apps about installs).
+    private val installReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return // just an update
+            val pkg = intent.data?.schemeSpecificPart ?: return
+            val pool = workers ?: return
+            try {
+                pool.execute { NewAppCheck.check(this@ShieldVpnService, pkg) }
+            } catch (_: Exception) {
+            }
+        }
+    }
+    private var installReceiverOn = false
 
     @Volatile private var upstreamCache: List<InetAddress> = emptyList()
     @Volatile private var upstreamAt = 0L
@@ -113,9 +129,17 @@ class ShieldVpnService : VpnService() {
 
         tun = fd
         output = FileOutputStream(fd.fileDescriptor)
-        workers = Executors.newFixedThreadPool(8)
+        workers = Executors.newFixedThreadPool(16)
         running = true
         Thread({ readLoop(fd) }, "shield-reader").start()
+        StatusViews.refresh(this)
+
+        try {
+            val filter = IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply { addDataScheme("package") }
+            ContextCompat.registerReceiver(this, installReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+            installReceiverOn = true
+        } catch (_: Exception) {
+        }
 
         val s = Executors.newSingleThreadScheduledExecutor()
         scheduler = s
@@ -124,7 +148,10 @@ class ShieldVpnService : VpnService() {
             Blocklists.updateIfStale(this)
         }
         // Checks every 15 minutes; it only downloads when the lists are missing or a day old.
-        s.scheduleWithFixedDelay({ Blocklists.updateIfStale(this) }, 15, 15, TimeUnit.MINUTES)
+        s.scheduleWithFixedDelay({
+            Blocklists.updateIfStale(this)
+            WeeklySummary.maybeSend(this)
+        }, 15, 15, TimeUnit.MINUTES)
     }
 
     private fun readLoop(fd: ParcelFileDescriptor) {
@@ -170,8 +197,15 @@ class ShieldVpnService : VpnService() {
         )
     }
 
-    /** Passes an allowed lookup to the network's normal lookup service. */
+    /** Passes an allowed lookup on: encrypted if private lookups are on, else the network's own service. */
     private fun forward(q: Packets.Query) {
+        if (Prefs(this).encryptedDns) {
+            val answer = Doh.query(q.dns)
+            if (answer != null) {
+                write(Packets.reply(q, answer))
+                return
+            }
+        }
         for (server in upstreams()) {
             try {
                 DatagramSocket().use { s ->
@@ -199,7 +233,8 @@ class ShieldVpnService : VpnService() {
             val cm = getSystemService(ConnectivityManager::class.java)
             val lp = cm.getLinkProperties(cm.activeNetwork)
             lp?.dnsServers?.forEach {
-                if (it is Inet4Address && it.hostAddress != VPN_DNS) list.add(it)
+                // Both older (IPv4) and newer (IPv6) addresses, so it works on every kind of network.
+                if (it.hostAddress != VPN_DNS) list.add(it)
             }
         } catch (_: Exception) {
         }
@@ -250,6 +285,14 @@ class ShieldVpnService : VpnService() {
         workers = null
         scheduler?.shutdownNow()
         scheduler = null
+        if (installReceiverOn) {
+            try {
+                unregisterReceiver(installReceiver)
+            } catch (_: Exception) {
+            }
+            installReceiverOn = false
+        }
+        StatusViews.refresh(this)
         ActivityLog.save(this)
     }
 

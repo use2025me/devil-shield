@@ -35,4 +35,32 @@ class Prefs(context: Context) {
     var listsCount: Int
         get() = p.getInt("lists_count", 0)
         set(v) = p.edit().putInt("lists_count", v).apply()
+
+    /** True once the welcome screen has been seen. */
+    var welcomed: Boolean
+        get() = p.getBoolean("welcomed", false)
+        set(v) = p.edit().putBoolean("welcomed", v).apply()
+
+    /** Send allowed lookups encrypted (private lookups). On by default. */
+    var encryptedDns: Boolean
+        get() = p.getBoolean("encrypted_dns", true)
+        set(v) = p.edit().putBoolean("encrypted_dns", v).apply()
+
+    /** Short, calm weekly summary notice. On by default. */
+    var weeklySummary: Boolean
+        get() = p.getBoolean("weekly_summary", true)
+        set(v) = p.edit().putBoolean("weekly_summary", v).apply()
+
+    var summaryAt: Long
+        get() = p.getLong("summary_at", 0L)
+        set(v) = p.edit().putLong("summary_at", v).apply()
+
+    var summaryBase: Int
+        get() = p.getInt("summary_base", 0)
+        set(v) = p.edit().putInt("summary_base", v).apply()
+
+    /** Newly installed apps that asked for strong permissions, waiting for a look. */
+    var newAppFlags: Set<String>
+        get() = p.getStringSet("new_app_flags", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("new_app_flags", HashSet(v)).apply()
 }

@@ -106,6 +106,30 @@ object HealthCheck {
             }
         }
 
+        // Newly installed apps that asked for strong abilities
+        val prefs = Prefs(ctx)
+        for (pkg in prefs.newAppFlags) {
+            val found = NewAppCheck.abilities(ctx, pkg)
+            if (found.isEmpty() || !AppInfo.isInstalled(ctx, pkg)) {
+                prefs.newAppFlags = prefs.newAppFlags - pkg
+                continue
+            }
+            val name = AppInfo.label(ctx, pkg)
+            out += Finding(
+                Level.WATCH, "New app: $name",
+                "$name came from outside an app store and can ${found.joinToString(", ")}.\n\n" +
+                    "If you know and trust it, that's fine. If you don't recognise it, removing it is the safest choice.",
+                listOf(
+                    Action("Remove $name") { uninstall(it, pkg) },
+                    Action("I know this app") { a ->
+                        val p = Prefs(a)
+                        p.newAppFlags = p.newAppFlags - pkg
+                        a.recreate()
+                    }
+                )
+            )
+        }
+
         // Remote debugging (ADB)
         val adb = globalInt(ctx, Settings.Global.ADB_ENABLED) == 1 || globalInt(ctx, "adb_wifi_enabled") == 1
         if (adb) {

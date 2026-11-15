@@ -36,8 +36,8 @@ class ActivityLogActivity : ShieldScreen() {
             text(what, 16f, if (e.family) Brand.MUTED else Brand.TEXT, bold = true, parent = c)
             text(e.domain, 15f, Brand.MUTED, parent = c)
             text("${e.app} · ${timeAgo(e.time)}", 13f, Brand.GREY, parent = c)
+            text("Blocked by mistake? Tap here to trust it.", 13f, Brand.GREEN, parent = c)
         }
-        text("Tap any item if it's a site you know and trust.", 13f, Brand.GREY, center = true)
     }
 
     private fun offerTrust(domain: String) {

@@ -12,13 +12,18 @@ By Devil Media Group.
 - **Trusted sites.** If anything is ever blocked by mistake, trust it with one tap.
 - **Optional family filter.** Adds adult and gambling sites, protected by a PIN. Off by default.
 - **Calm by design.** No scary pop-ups. One clear status: "You're protected".
-- **Works on TVs.** Remote-friendly screens, appears on the Android TV and Fire TV home screen, and turns itself back on after a restart.
+- **Works on TVs.** Remote-friendly screens, appears on the Android TV and Fire TV home screen, and turns itself back on after a restart or update.
+- **Private lookups.** Allowed lookups are encrypted (DNS over HTTPS via Cloudflare, with Google as backup), falling back to the network's own service when needed. Can be turned off in Settings.
+- **New-app check.** Newly installed apps from outside an app store that ask for strong abilities get a gentle notice and appear in the health check.
+- **Quick switch and widget.** A Devil Shield switch in the pull-down quick settings, and a home-screen widget showing "Protected".
+- **Welcome screen** and an optional **weekly summary** notice.
+- **Light on memory.** Lists are stored as 8-byte fingerprints, so 200,000 sites use about 1.6 MB.
 
 ## How it works
 
 Devil Shield runs a local VPN on the device itself. Only website lookups pass through it; all other traffic goes straight to the internet as normal. Nothing is sent to a Devil Media Group server.
 
-Allowed lookups are passed to the network's own lookup service (with public fallbacks), so nothing changes apart from threats being blocked.
+Allowed lookups are sent encrypted (private lookups), or to the network's own lookup service if private lookups are off or unavailable.
 
 Protection lists update automatically every day:
 - [HaGeZi Threat Intelligence Feeds](https://github.com/hagezi/dns-blocklists) (mini)

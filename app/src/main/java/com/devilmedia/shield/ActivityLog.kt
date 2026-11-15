@@ -33,6 +33,9 @@ object ActivityLog {
         private set
     @Volatile var blockedToday = 0
         private set
+    /** All threats ever blocked (not family-filter blocks). Used for the weekly summary. */
+    @Volatile var threatsBlocked = 0
+        private set
 
     private fun today(): Long {
         val now = System.currentTimeMillis()
@@ -59,6 +62,7 @@ object ActivityLog {
         entries.addFirst(e)
         while (entries.size > MAX) entries.removeLast()
         if (!e.family) {
+            threatsBlocked++
             flagged[e.pkg] = (flagged[e.pkg] ?: 0) + 1
             flaggedNames[e.pkg] = e.app
         }
@@ -88,6 +92,7 @@ object ActivityLog {
             day = o.optLong("day")
             checkedToday = o.optInt("checked")
             blockedToday = o.optInt("blocked")
+            threatsBlocked = o.optInt("threats")
             rollDay()
             val arr = o.optJSONArray("entries") ?: JSONArray()
             for (i in 0 until arr.length()) {
@@ -115,6 +120,7 @@ object ActivityLog {
             o.put("day", day)
             o.put("checked", checkedToday)
             o.put("blocked", blockedToday)
+            o.put("threats", threatsBlocked)
             val arr = JSONArray()
             for (e in entries) {
                 arr.put(

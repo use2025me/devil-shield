@@ -1,9 +1,16 @@
 package com.devilmedia.shield
 
 import android.content.Context
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Arrays
 
 /** Helpers for reading and matching website names. */
 object Domains {
@@ -35,11 +42,17 @@ object Domains {
     }
 
     /** True if the site, or any site it belongs to, is in the set. */
-    fun matches(domain: String, set: Set<String>): Boolean {
-        if (set.isEmpty()) return false
+    fun matches(domain: String, set: Set<String>): Boolean =
+        set.isNotEmpty() && walk(domain) { set.contains(it) }
+
+    fun matches(domain: String, set: DomainSet): Boolean =
+        set.isNotEmpty() && walk(domain) { set.contains(it) }
+
+    /** Tries "a.b.example.com", then "b.example.com", then "example.com". */
+    private inline fun walk(domain: String, test: (String) -> Boolean): Boolean {
         var d = domain
         while (true) {
-            if (set.contains(d)) return true
+            if (test(d)) return true
             val i = d.indexOf('.')
             if (i < 0) return false
             d = d.substring(i + 1)
@@ -97,19 +110,20 @@ object Blocklists {
         )
     )
 
+
     /** What happened on the last download attempt, shown in Settings to help sort out problems. */
     @Volatile var lastReport: String = ""
         private set
 
-    private const val SECURITY_FILE = "security.txt"
-    private const val FAMILY_FILE = "family.txt"
+    private const val SECURITY_FILE = "security.bin"
+    private const val FAMILY_FILE = "family.bin"
     private const val DAY = 24L * 60 * 60 * 1000
 
     enum class Verdict { ALLOW, THREAT, FAMILY }
 
-    @Volatile var security: Set<String> = emptySet()
+    @Volatile var security: DomainSet = DomainSet.EMPTY
         private set
-    @Volatile var family: Set<String> = emptySet()
+    @Volatile var family: DomainSet = DomainSet.EMPTY
         private set
     @Volatile var trusted: Set<String> = emptySet()
         private set
@@ -131,11 +145,14 @@ object Blocklists {
         trusted = p.trusted
         familyOn = p.familyFilter
         if (familyOn && family.isEmpty()) family = readSet(file(ctx, FAMILY_FILE))
-        if (!familyOn) family = emptySet()
+        if (!familyOn) family = DomainSet.EMPTY
     }
 
     /** Loads the lists saved from last time, so protection starts straight away. */
     fun loadCached(ctx: Context) {
+        // Older versions saved plain text lists; they're replaced by the lighter format.
+        File(ctx.filesDir, "security.txt").delete()
+        File(ctx.filesDir, "family.txt").delete()
         if (security.isEmpty()) security = readSet(file(ctx, SECURITY_FILE))
         refreshSettings(ctx)
     }
@@ -182,27 +199,28 @@ object Blocklists {
 
     private fun file(ctx: Context, name: String) = File(ctx.filesDir, name)
 
-    private fun download(sources: List<Source>, report: StringBuilder): HashSet<String> {
-        val out = HashSet<String>(200_000)
+    private fun download(sources: List<Source>, report: StringBuilder): DomainSet {
+        val out = LongList()
         for (src in sources) {
             var result = ""
             for (u in src.urls) {
-                val before = out.size
-                val err = fetchInto(u, out)
+                val count = IntArray(1)
+                val err = fetchInto(u, out, count)
                 if (err == null) {
-                    result = "OK (${out.size - before})"
+                    result = "OK (${count[0]})"
                     break
                 }
                 result = err
             }
             report.append(src.name).append(": ").append(result).append('\n')
         }
-        return out
+        return DomainSet(out.sortedUnique())
     }
 
     /** Adds a list's sites to [out]. Returns null on success, or a short reason it failed. */
-    private fun fetchInto(url: String, out: MutableSet<String>): String? {
+    private fun fetchInto(url: String, out: LongList, count: IntArray): String? {
         var c: HttpURLConnection? = null
+        val start = out.size
         return try {
             c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = 20_000
@@ -211,15 +229,19 @@ object Blocklists {
             c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) DevilShield")
             val code = c.responseCode
             if (code != 200) return "HTTP $code"
-            var added = 0
             c.inputStream.bufferedReader().useLines { lines ->
                 lines.forEach { line ->
                     val d = Domains.parseLine(line)
-                    if (d != null && out.add(d)) added++
+                    if (d != null) {
+                        out.add(DomainSet.hash(d))
+                        count[0]++
+                    }
                 }
             }
-            if (added > 0) null else "empty list"
+            if (count[0] > 0) null else "empty list"
         } catch (e: Exception) {
+            out.truncate(start) // drop a half-downloaded list
+            count[0] = 0
             e.javaClass.simpleName
         } finally {
             try {
@@ -229,23 +251,85 @@ object Blocklists {
         }
     }
 
-    private fun readSet(f: File): Set<String> {
-        if (!f.exists()) return emptySet()
+    private fun readSet(f: File): DomainSet {
+        if (!f.exists()) return DomainSet.EMPTY
         return try {
-            val s = HashSet<String>(200_000)
-            f.bufferedReader().useLines { lines -> lines.forEach { if (it.isNotEmpty()) s.add(it) } }
-            s
+            DataInputStream(BufferedInputStream(FileInputStream(f))).use { input ->
+                val n = input.readInt()
+                if (n < 0 || n > 10_000_000) return DomainSet.EMPTY
+                val a = LongArray(n)
+                for (i in 0 until n) a[i] = input.readLong()
+                DomainSet(a)
+            }
         } catch (_: Exception) {
-            emptySet()
+            DomainSet.EMPTY
         }
     }
 
-    private fun writeSet(f: File, s: Set<String>) {
+    private fun writeSet(f: File, s: DomainSet) {
         try {
             val tmp = File(f.parentFile, f.name + ".tmp")
-            tmp.bufferedWriter().use { w -> for (d in s) { w.write(d); w.write("\n") } }
+            DataOutputStream(BufferedOutputStream(FileOutputStream(tmp))).use { out ->
+                out.writeInt(s.hashes.size)
+                for (h in s.hashes) out.writeLong(h)
+            }
             tmp.renameTo(f)
         } catch (_: Exception) {
         }
+    }
+}
+
+/**
+ * A memory-light set of site names. It keeps an 8-byte fingerprint of each name in a
+ * sorted array instead of the names themselves, so 200,000 sites use about 1.6 MB.
+ */
+class DomainSet(val hashes: LongArray) {
+    val size: Int get() = hashes.size
+    fun isEmpty(): Boolean = hashes.isEmpty()
+    fun isNotEmpty(): Boolean = hashes.isNotEmpty()
+    fun contains(domain: String): Boolean =
+        hashes.isNotEmpty() && Arrays.binarySearch(hashes, hash(domain)) >= 0
+
+    companion object {
+        val EMPTY = DomainSet(LongArray(0))
+
+        /** 64-bit FNV-1a fingerprint of a site name. */
+        fun hash(s: String): Long {
+            var h = -0x340d631b7bdddcdbL // 0xcbf29ce484222325
+            for (ch in s) {
+                h = h xor ch.code.toLong()
+                h *= 0x100000001b3L
+            }
+            return h
+        }
+    }
+}
+
+/** A growable list of numbers, used while downloading. */
+class LongList {
+    private var a = LongArray(1 shl 16)
+    var size = 0
+        private set
+
+    fun add(v: Long) {
+        if (size == a.size) a = a.copyOf(size * 2)
+        a[size++] = v
+    }
+
+    fun truncate(n: Int) {
+        if (n in 0..size) size = n
+    }
+
+    fun sortedUnique(): LongArray {
+        val b = a.copyOf(size)
+        b.sort()
+        var n = 0
+        for (i in b.indices) {
+            if (n == 0 || b[i] != b[n - 1]) {
+                b[n] = b[i]
+                n++
+            }
+        }
+        return b.copyOf(n)
     }
 }
