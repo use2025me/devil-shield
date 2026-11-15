@@ -20,6 +20,7 @@ class MainActivity : ShieldScreen() {
     private lateinit var toggle: Button
     private lateinit var stats: TextView
     private lateinit var lists: TextView
+    private lateinit var vpnLine: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val numbers = NumberFormat.getIntegerInstance()
 
@@ -55,7 +56,10 @@ class MainActivity : ShieldScreen() {
         lists = text("", 13f, Brand.GREY, center = true)
         gap(12)
 
+        vpnLine = text("", 14f, Brand.MUTED, center = true)
+        gap(4)
         button("Health check") { startActivity(Intent(this, HealthActivity::class.java)) }
+        button("Your VPN") { startActivity(Intent(this, VpnActivity::class.java)) }
         button("Activity") { startActivity(Intent(this, ActivityLogActivity::class.java)) }
         button("Trusted sites") { startActivity(Intent(this, TrustedActivity::class.java)) }
         button("Settings") { startActivity(Intent(this, SettingsActivity::class.java)) }
@@ -114,7 +118,7 @@ class MainActivity : ShieldScreen() {
         } else if (otherVpnActive()) {
             circle.text = "Another VPN\nis running"
             message.text = "Another VPN app (like Surfshark) is on, and Android only allows one at a time. " +
-                "You can still use the Health check below. Built-in VPN support is coming soon, so you can have both."
+                "You can still use the Health check below, or import your VPN under \"Your VPN\" to have both in one app."
             toggle.text = "Use Devil Shield instead"
         } else {
             circle.text = "Protection\nis off"
@@ -129,6 +133,18 @@ class MainActivity : ShieldScreen() {
             "Blocked today: ${numbers.format(ActivityLog.blockedToday)}"
 
         val p = Prefs(this)
+        vpnLine.text = when {
+            !p.vpnOn || p.vpnConfig.isEmpty() -> ""
+            !on -> "VPN: ${p.vpnName} (connects when protection is on)"
+            WgTunnel.state == WgTunnel.State.CONNECTED -> "VPN: ${p.vpnName} · Connected ✓"
+            WgTunnel.state == WgTunnel.State.FAILED -> "VPN: ${p.vpnName} · Can't connect (tap Your VPN)"
+            else -> "VPN: ${p.vpnName} · Connecting…"
+        }
+        vpnLine.setTextColor(
+            if (on && WgTunnel.state == WgTunnel.State.CONNECTED) Brand.GREEN
+            else if (on && WgTunnel.state == WgTunnel.State.FAILED) Brand.SOFT_RED
+            else Brand.MUTED
+        )
         lists.text = if (p.listsUpdatedAt == 0L)
             "Protection lists download when you turn protection on."
         else

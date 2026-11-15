@@ -59,6 +59,20 @@ class Prefs(context: Context) {
         get() = p.getInt("summary_base", 0)
         set(v) = p.edit().putInt("summary_base", v).apply()
 
+    /** The person's own VPN file (WireGuard). Kept only in this app's private storage. */
+    var vpnConfig: String
+        get() = p.getString("vpn_config", "") ?: ""
+        set(v) = p.edit().putString("vpn_config", v).apply()
+
+    var vpnName: String
+        get() = p.getString("vpn_name", "") ?: ""
+        set(v) = p.edit().putString("vpn_name", v).apply()
+
+    /** True when the imported VPN should be used together with protection. */
+    var vpnOn: Boolean
+        get() = p.getBoolean("vpn_on", false)
+        set(v) = p.edit().putBoolean("vpn_on", v).apply()
+
     /** Newly installed apps that asked for strong permissions, waiting for a look. */
     var newAppFlags: Set<String>
         get() = p.getStringSet("new_app_flags", emptySet())?.toSet() ?: emptySet()

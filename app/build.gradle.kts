@@ -64,8 +64,17 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        resources {
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
+    // Well-tested encryption library used for the built-in WireGuard VPN.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    testImplementation("junit:junit:4.13.2")
 }

@@ -19,6 +19,10 @@ By Devil Media Group.
 - **Welcome screen** and an optional **weekly summary** notice.
 - **Light on memory.** Lists are stored as 8-byte fingerprints, so 200,000 sites use about 1.6 MB.
 
+## Built-in VPN (version 2)
+
+Import a WireGuard VPN file (.conf) from Surfshark, Proton VPN, Mullvad, Windscribe, IVPN or your own server under **Your VPN**. Devil Shield then carries the whole connection through that VPN while still blocking threats and keeping the Activity log. Allowed lookups go through the VPN to its own lookup service. IPv6 traffic is routed into the tunnel so nothing leaks around it. The WireGuard protocol is implemented in Kotlin (with Bouncy Castle for the encryption) and every build tests it against a real WireGuard server.
+
 ## How it works
 
 Devil Shield runs a local VPN on the device itself. Only website lookups pass through it; all other traffic goes straight to the internet as normal. Nothing is sent to a Devil Media Group server.
@@ -33,7 +37,7 @@ Protection lists update automatically every day:
 
 ## Known limits
 
-- Only one VPN app can run at a time on Android. Using another VPN app switches Devil Shield off.
+- Only one VPN app can run at a time on Android. Using another VPN app switches Devil Shield off; import that VPN's WireGuard file instead to have both.
 - Malware that ignores the device's lookup settings (hard-coded servers, or "Private DNS") can go around the shield. The health check flags Private DNS.
 - Malware built into a device's own software can't be deleted by any app. Devil Shield cuts it off and explains the options.
 - No app offers 100% protection.

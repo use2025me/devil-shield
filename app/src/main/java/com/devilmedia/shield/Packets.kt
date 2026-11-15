@@ -71,7 +71,11 @@ object Packets {
     }
 
     /** Wraps an answer in an IPv4/UDP packet going back to the app that asked. */
-    fun reply(q: Query, payload: ByteArray): ByteArray {
+    fun reply(q: Query, payload: ByteArray): ByteArray =
+        udp4(q.dstIp, q.srcIp, q.dstPort, q.srcPort, payload)
+
+    /** Builds an IPv4/UDP packet. */
+    fun udp4(src: ByteArray, dst: ByteArray, srcPort: Int, dstPort: Int, payload: ByteArray): ByteArray {
         val total = 28 + payload.size
         val p = ByteArray(total)
         p[0] = 0x45
@@ -79,15 +83,37 @@ object Packets {
         p[6] = 0x40 // don't fragment
         p[8] = 64 // time to live
         p[9] = 17 // UDP
-        System.arraycopy(q.dstIp, 0, p, 12, 4)
-        System.arraycopy(q.srcIp, 0, p, 16, 4)
+        System.arraycopy(src, 0, p, 12, 4)
+        System.arraycopy(dst, 0, p, 16, 4)
         put16(p, 10, checksum(p, 20))
-        put16(p, 20, q.dstPort)
-        put16(p, 22, q.srcPort)
+        put16(p, 20, srcPort)
+        put16(p, 22, dstPort)
         put16(p, 24, 8 + payload.size)
         // UDP checksum 0 = "not used", which is allowed for IPv4.
         System.arraycopy(payload, 0, p, 28, payload.size)
         return p
+    }
+
+    /**
+     * If [pkt] is a lookup answer (IPv4, UDP from port 53) from [from], returns its
+     * destination port, else -1. Used to recognise answers coming back through the VPN.
+     */
+    fun dnsAnswerPort(pkt: ByteArray, from: ByteArray): Int {
+        if (pkt.size < 28 || ((pkt[0].toInt() shr 4) and 0xF) != 4) return -1
+        if ((pkt[9].toInt() and 0xFF) != 17) return -1
+        for (i in 0 until 4) if (pkt[12 + i] != from[i]) return -1
+        val ihl = (pkt[0].toInt() and 0xF) * 4
+        if (pkt.size < ihl + 8 || u16(pkt, ihl) != 53) return -1
+        return u16(pkt, ihl + 2)
+    }
+
+    /** Changes the sender address of an IPv4/UDP packet (in place) and fixes its checksums. */
+    fun rewriteSource(pkt: ByteArray, newSrc: ByteArray) {
+        val ihl = (pkt[0].toInt() and 0xF) * 4
+        System.arraycopy(newSrc, 0, pkt, 12, 4)
+        put16(pkt, 10, 0)
+        put16(pkt, 10, checksum(pkt, ihl))
+        put16(pkt, ihl + 6, 0) // UDP checksum not used
     }
 
     private fun checksum(b: ByteArray, len: Int): Int {

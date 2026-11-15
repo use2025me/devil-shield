@@ -24,6 +24,37 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      # Starts a real WireGuard server on the build machine, so the built-in VPN is tested
+      # against the real thing before every release.
+      - name: Start a test WireGuard server
+        id: wgserver
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wireguard-tools
+          umask 077
+          wg genkey > server.key; wg pubkey < server.key > server.pub
+          wg genkey > client.key; wg pubkey < client.key > client.pub
+          sudo ip link add wg0 type wireguard
+          sudo wg set wg0 listen-port 51820 private-key server.key peer "$(cat client.pub)" allowed-ips 10.99.0.2/32
+          sudo ip addr add 10.99.0.1/24 dev wg0
+          sudo ip link set wg0 up
+          echo "WG_TEST_CLIENT_KEY=$(cat client.key)" >> "$GITHUB_ENV"
+          echo "WG_TEST_SERVER_PUB=$(cat server.pub)" >> "$GITHUB_ENV"
+
+      - name: Test the built-in VPN against WireGuard
+        if: steps.wgserver.outcome == 'success'
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest || {
+            for f in app/build/test-results/testDebugUnitTest/*.xml; do
+              grep -o 'message="[^"]*"' "$f" | head -5 | sed 's/^/::error::/'
+            done
+            sudo wg show
+            exit 1
+          }
+          sudo wg show
+
       # The signing key is stored encrypted in signing/release.jks.enc.
       # It can only be unlocked with the SIGNING_PASSWORD repository secret.
       - name: Unlock signing key

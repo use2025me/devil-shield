@@ -36,6 +36,7 @@ class ShieldVpnService : VpnService() {
     companion object {
         const val ACTION_START = "com.devilmedia.shield.START"
         const val ACTION_STOP = "com.devilmedia.shield.STOP"
+        const val ACTION_RESTART = "com.devilmedia.shield.RESTART"
 
         @Volatile var running = false
             private set
@@ -55,6 +56,18 @@ class ShieldVpnService : VpnService() {
         fun stop(ctx: Context) {
             ctx.startService(Intent(ctx, ShieldVpnService::class.java).setAction(ACTION_STOP))
         }
+
+        /** Applies VPN changes straight away if protection is on. */
+        fun restartIfRunning(ctx: Context) {
+            if (!running) return
+            try {
+                ctx.startService(Intent(ctx, ShieldVpnService::class.java).setAction(ACTION_RESTART))
+            } catch (_: Exception) {
+            }
+        }
+
+        /** True while protection is on and carrying the person's own VPN. */
+        val vpnMode: Boolean get() = running && WgTunnel.active
     }
 
     private var tun: ParcelFileDescriptor? = null
@@ -77,6 +90,12 @@ class ShieldVpnService : VpnService() {
     }
     private var installReceiverOn = false
 
+    // Built-in VPN (when the person has imported a VPN file and switched it on).
+    @Volatile private var tunnel: WgTunnel? = null
+    private var tunnelDns = byteArrayOf(1, 1, 1, 1)
+    private val vpnDnsBytes = InetAddress.getByName(VPN_DNS).address
+    private val dnsPorts = ConcurrentHashMap<Int, Long>()
+
     @Volatile private var upstreamCache: List<InetAddress> = emptyList()
     @Volatile private var upstreamAt = 0L
 
@@ -86,6 +105,11 @@ class ShieldVpnService : VpnService() {
             shutdown()
             stopSelf()
             return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_RESTART) {
+            shutdown()
+            startShield()
+            return START_STICKY
         }
         // ACTION_START, or Android starting us for "Always-on VPN".
         Prefs(this).enabled = true
@@ -99,12 +123,25 @@ class ShieldVpnService : VpnService() {
         ActivityLog.load(this)
         Blocklists.refreshSettings(this)
 
+        val prefs = Prefs(this)
+        val vpn = if (prefs.vpnOn) WgConfig.parse(prefs.vpnConfig) else null
+
         val builder = Builder()
             .setSession(getString(R.string.app_name))
-            .addAddress(VPN_ADDRESS, 32)
             .addDnsServer(VPN_DNS)
-            .addRoute(VPN_DNS, 32) // only lookups come through Devil Shield
             .setBlocking(true)
+        if (vpn == null) {
+            // Protection only: just website lookups come through Devil Shield.
+            builder.addAddress(VPN_ADDRESS, 32)
+            builder.addRoute(VPN_DNS, 32)
+        } else {
+            // Protection + VPN: everything goes through Devil Shield and on to the VPN server.
+            for ((addr, prefix) in vpn.addresses) builder.addAddress(addr, prefix)
+            builder.addRoute("0.0.0.0", 0)
+            builder.addRoute("::", 0) // newer-style traffic too, so nothing leaks around the VPN
+            builder.setMtu(vpn.mtu)
+            tunnelDns = vpn.dns.firstOrNull { it.address.size == 4 }?.address ?: byteArrayOf(1, 1, 1, 1)
+        }
         try {
             builder.addDisallowedApplication(packageName) // our own list downloads go direct
         } catch (_: Exception) {
@@ -131,6 +168,11 @@ class ShieldVpnService : VpnService() {
         output = FileOutputStream(fd.fileDescriptor)
         workers = Executors.newFixedThreadPool(16)
         running = true
+        if (vpn != null) {
+            val t = WgTunnel(vpn, protect = { protect(it) }, deliver = { deliverFromTunnel(it) })
+            tunnel = t
+            t.start()
+        }
         Thread({ readLoop(fd) }, "shield-reader").start()
         StatusViews.refresh(this)
 
@@ -162,12 +204,19 @@ class ShieldVpnService : VpnService() {
                 val n = input.read(buf)
                 if (n < 0) break
                 if (n == 0) continue
-                val q = Packets.parseUdpDns(buf, n) ?: continue
-                val pool = workers ?: break
-                try {
-                    pool.execute { handle(q) }
-                } catch (_: RejectedExecutionException) {
-                    break
+                val t = tunnel
+                val q = Packets.parseUdpDns(buf, n)
+                if (q != null && (t == null || q.dstIp.contentEquals(vpnDnsBytes))) {
+                    // A website lookup: check it against the protection lists.
+                    val pool = workers ?: break
+                    try {
+                        pool.execute { handle(q) }
+                    } catch (_: RejectedExecutionException) {
+                        break
+                    }
+                } else if (t != null) {
+                    // Everything else goes straight into the VPN.
+                    t.send(buf, n)
                 }
             }
         } catch (_: Exception) {
@@ -199,6 +248,15 @@ class ShieldVpnService : VpnService() {
 
     /** Passes an allowed lookup on: encrypted if private lookups are on, else the network's own service. */
     private fun forward(q: Packets.Query) {
+        val t = tunnel
+        if (t != null) {
+            // With the VPN on, allowed lookups go privately through the VPN to its own lookup service.
+            if (dnsPorts.size > 4096) dnsPorts.clear()
+            dnsPorts[q.srcPort] = SystemClock.elapsedRealtime()
+            val pkt = Packets.udp4(q.srcIp, tunnelDns, q.srcPort, 53, q.dns)
+            t.send(pkt, pkt.size)
+            return
+        }
         if (Prefs(this).encryptedDns) {
             val answer = Doh.query(q.dns)
             if (answer != null) {
@@ -222,6 +280,16 @@ class ShieldVpnService : VpnService() {
                 // Try the next server.
             }
         }
+    }
+
+    /** A packet arriving from the VPN server, on its way to an app. */
+    private fun deliverFromTunnel(pkt: ByteArray) {
+        val port = Packets.dnsAnswerPort(pkt, tunnelDns)
+        if (port >= 0 && dnsPorts.remove(port) != null) {
+            // An answer to a lookup Devil Shield passed on: make it come from Devil Shield's address.
+            Packets.rewriteSource(pkt, vpnDnsBytes)
+        }
+        write(pkt)
     }
 
     /** The lookup servers of the Wi-Fi or network the device is on, then public fallbacks. */
@@ -275,6 +343,9 @@ class ShieldVpnService : VpnService() {
 
     @Synchronized private fun shutdown() {
         running = false
+        tunnel?.stop()
+        tunnel = null
+        dnsPorts.clear()
         try {
             tun?.close()
         } catch (_: Exception) {

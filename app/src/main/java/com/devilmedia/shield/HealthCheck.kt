@@ -51,7 +51,7 @@ object HealthCheck {
                 Level.WATCH, "Another VPN is running",
                 "Devil Shield's blocking is paused while another VPN app (like Surfshark) is on, because Android " +
                     "only allows one at a time. Everything on this page still works. " +
-                    "Built-in VPN support is coming soon, so you can have both."
+                    "To have both, import your VPN file under \"Your VPN\" on the main screen."
             )
         } else {
             out += Finding(
