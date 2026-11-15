@@ -31,14 +31,20 @@ jobs:
         continue-on-error: true
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq wireguard-tools
+          sudo apt-get install -y -qq wireguard-tools || { echo "::error::Couldn't install wireguard-tools"; exit 1; }
           umask 077
           wg genkey > server.key; wg pubkey < server.key > server.pub
           wg genkey > client.key; wg pubkey < client.key > client.pub
-          sudo ip link add wg0 type wireguard
-          sudo wg set wg0 listen-port 51820 private-key server.key peer "$(cat client.pub)" allowed-ips 10.99.0.2/32
+          if ! sudo ip link add wg0 type wireguard 2> wgerr.txt; then
+            echo "::warning::Kernel WireGuard not available ($(cat wgerr.txt)), using wireguard-go instead"
+            go install golang.zx2c4.com/wireguard@latest 2> goerr.txt || { echo "::error::wireguard-go install failed: $(tail -3 goerr.txt | tr '\n' ' ')"; exit 1; }
+            sudo "$(go env GOPATH)/bin/wireguard" wg0 2> wggoerr.txt || { echo "::error::wireguard-go didn't start: $(cat wggoerr.txt | tr '\n' ' ')"; exit 1; }
+            sleep 1
+          fi
+          sudo wg set wg0 listen-port 51820 private-key server.key peer "$(cat client.pub)" allowed-ips 10.99.0.2/32 2> seterr.txt || { echo "::error::wg set failed: $(cat seterr.txt)"; exit 1; }
           sudo ip addr add 10.99.0.1/24 dev wg0
           sudo ip link set wg0 up
+          sudo wg show
           echo "WG_TEST_CLIENT_KEY=$(cat client.key)" >> "$GITHUB_ENV"
           echo "WG_TEST_SERVER_PUB=$(cat server.pub)" >> "$GITHUB_ENV"
 
