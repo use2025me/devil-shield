@@ -41,7 +41,10 @@ jobs:
             sudo "$(go env GOPATH)/bin/wireguard" wg0 2> wggoerr.txt || { echo "::error::wireguard-go didn't start: $(cat wggoerr.txt | tr '\n' ' ')"; exit 1; }
             sleep 1
           fi
-          cat server.key | sudo wg set wg0 listen-port 51820 private-key /dev/stdin peer "$(cat client.pub)" allowed-ips 10.99.0.2/32 2> seterr.txt || { echo "::error::wg set failed: $(cat seterr.txt)"; exit 1; }
+          # Newer Ubuntu only lets the wg tool read keys from /etc/wireguard.
+          sudo mkdir -p /etc/wireguard
+          sudo install -m 600 server.key /etc/wireguard/test-server.key
+          sudo wg set wg0 listen-port 51820 private-key /etc/wireguard/test-server.key peer "$(cat client.pub)" allowed-ips 10.99.0.2/32 2> seterr.txt || { echo "::error::wg set failed: $(cat seterr.txt)"; exit 1; }
           sudo ip addr add 10.99.0.1/24 dev wg0
           sudo ip link set wg0 up
           sudo wg show
