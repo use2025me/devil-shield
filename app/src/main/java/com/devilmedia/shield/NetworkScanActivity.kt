@@ -30,7 +30,9 @@ class NetworkScanActivity : ShieldScreen() {
         heading("Network scan")
         text(
             "Checks the devices on your Wi-Fi (cameras, TV boxes, your router and more) for common risks, " +
-                "like doors hackers use being left open. It never tries to log in to anything."
+                "like doors hackers use being left open. It recognises camera brands such as Hikvision and " +
+                "Dahua, and asks your router whether anything is open to the internet. It never tries to log " +
+                "in to anything."
         )
         text("Only scan networks you own, or have permission to check.", 13f, Brand.GREY)
         gap(4)
@@ -47,7 +49,10 @@ class NetworkScanActivity : ShieldScreen() {
             val result = try {
                 NetworkScan.scan(applicationContext) { done, total ->
                     if (done % 8 == 0 || done == total) {
-                        runOnUiThread { progress?.text = "Scanning… ${done * 100 / total}%" }
+                        runOnUiThread {
+                            progress?.text = if (done == total) "Checking cameras and your router…"
+                            else "Scanning… ${done * 100 / total}%"
+                        }
                     }
                 }
             } catch (_: Exception) {
@@ -78,6 +83,36 @@ class NetworkScanActivity : ShieldScreen() {
             text("Have a look at the tips below for any cameras or your router.", parent = summary)
         }
         text("Found ${result.devices.size} devices on ${result.network}.", 13f, Brand.GREY, parent = summary)
+
+        // Internet exposure (from the router)
+        val net = card()
+        text("Open to the internet?", 17f, Brand.TEXT, bold = true, parent = net)
+        val upnp = result.upnp
+        when {
+            upnp == null -> text(
+                "Your router didn't answer automatic set-up requests (UPnP). That usually means it's switched " +
+                    "off, which is the safer setting.", 14f, Brand.GREEN, parent = net
+            )
+            upnp.isEmpty() -> text(
+                "UPnP is on in your router, but nothing is open to the internet right now. Switching UPnP off " +
+                    "in the router is still safer.", 14f, Brand.AMBER, parent = net
+            )
+            else -> {
+                text(
+                    "Your router has opened ${upnp.size} door(s) to the internet automatically (UPnP):",
+                    14f, Brand.SOFT_RED, parent = net
+                )
+                for (m in upnp) {
+                    val what = m.description.ifBlank { "device" }
+                    text("•  Port ${m.externalPort} → ${m.internalIp} ($what)", 13f, Brand.MUTED, parent = net)
+                }
+                text(
+                    "Games consoles and some apps use this on purpose. Cameras and recorders shouldn't. " +
+                        "The devices below show which ones need a look.", 13f, Brand.GREY, parent = net
+                )
+            }
+        }
+        text("Port forwarding set up by hand in the router won't show here.", 12f, Brand.GREY, parent = net)
 
         for (d in result.devices) {
             val c = card()

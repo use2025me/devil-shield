@@ -23,13 +23,18 @@ object NetworkScan {
         val name: String,
         val ports: Set<Int>,
         val isRouter: Boolean,
-        val isThisDevice: Boolean
+        val isThisDevice: Boolean,
+        val brand: String? = null,
+        /** Doors the router has opened to the internet for this device. */
+        val exposed: List<Upnp.Mapping> = emptyList()
     ) {
+        val isCamera: Boolean get() = 554 in ports || 8000 in ports || 37777 in ports
+
         val kind: String
             get() = when {
                 isThisDevice -> "This device"
                 isRouter -> "Your router"
-                554 in ports || 8000 in ports || 37777 in ports -> "Camera or video recorder"
+                isCamera -> if (brand != null) "$brand camera or recorder" else "Camera or video recorder"
                 8008 in ports || 8009 in ports -> "Smart TV or streaming device"
                 5555 in ports -> "Android device"
                 445 in ports -> "Computer or storage drive"
@@ -40,6 +45,13 @@ object NetworkScan {
         val notes: List<Triple<Level, String, String>>
             get() {
                 val out = ArrayList<Triple<Level, String, String>>()
+                if (exposed.isNotEmpty()) out += Triple(
+                    Level.ACTION, "Open to the internet",
+                    "Your router is letting anyone on the internet reach this device (port " +
+                        exposed.joinToString(", ") { it.externalPort.toString() } + "). This was set up " +
+                        "automatically by a feature called UPnP. Unless you need it, switch off UPnP in this " +
+                        "device's settings and in your router, then scan again."
+                )
                 if (23 in ports) out += Triple(
                     Level.ACTION, "Old remote login (Telnet) is open",
                     "This is a common way hackers take over cameras and routers. Turn Telnet off in the device's " +
@@ -50,11 +62,7 @@ object NetworkScan {
                     "Anyone on your Wi-Fi could control this device. On that box, go to Developer options and " +
                         "switch off ADB / network debugging."
                 )
-                if (554 in ports || 8000 in ports || 37777 in ports) out += Triple(
-                    Level.WATCH, "Camera check",
-                    "Make sure you've changed its default password, its software is up to date, and you view it " +
-                        "away from home through the maker's app rather than by \"port forwarding\" on the router."
-                )
+                if (isCamera) out += Triple(Level.WATCH, "Camera check", CameraCheck.advice(brand))
                 if (isRouter) out += Triple(
                     Level.WATCH, "Router check",
                     "Make sure the router's admin password isn't the one printed on it, and switch off UPnP and " +
@@ -68,7 +76,8 @@ object NetworkScan {
             }
     }
 
-    class Result(val devices: List<Device>, val network: String)
+    /** [upnp] is null when the router didn't answer UPnP (usually means it's switched off, which is good). */
+    class Result(val devices: List<Device>, val network: String, val upnp: List<Upnp.Mapping>?)
 
     private val PORTS = intArrayOf(80, 443, 554, 8000, 37777, 23, 22, 5555, 8008, 8009, 8080, 445)
 
@@ -127,11 +136,27 @@ object NetworkScan {
         namePool.shutdown()
         namePool.awaitTermination(20, TimeUnit.SECONDS)
 
+        // Camera brands, and what the router has opened to the internet.
+        val brands = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val brandPool = Executors.newFixedThreadPool(8)
+        for ((ip, ports) in found) {
+            if (554 in ports || 8000 in ports || 37777 in ports) {
+                brandPool.execute { CameraCheck.brand(ip)?.let { brands[ip] = it } }
+            }
+        }
+        brandPool.shutdown()
+        val upnp = Upnp.portMappings()?.filter { it.internalIp.isNotEmpty() && it.externalPort > 0 }
+        brandPool.awaitTermination(30, TimeUnit.SECONDS)
+
         val devices = found.map { (ip, ports) ->
-            Device(ip, names[ip] ?: "", ports, gatewayMatches(ip, gateway), ip == myIp)
+            Device(
+                ip, names[ip] ?: "", ports, gatewayMatches(ip, gateway), ip == myIp,
+                brand = brands[ip],
+                exposed = upnp?.filter { it.internalIp == ip } ?: emptyList()
+            )
         }.sortedWith(compareBy<Device>({ -(it.notes.count { n -> n.first == Level.ACTION }) }, { it.ip.substringAfterLast('.').toIntOrNull() ?: 0 }))
         val net = "${base[0].toInt() and 0xFF}.${base[1].toInt() and 0xFF}.${base[2].toInt() and 0xFF}.x"
-        return Result(devices, net)
+        return Result(devices, net, upnp)
     }
 
     private fun gatewayMatches(ip: String, gateway: InetAddress?): Boolean =
