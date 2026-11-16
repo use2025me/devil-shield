@@ -86,11 +86,11 @@ object HealthCheck {
                     "It tried $times and Devil Shield blocked it every time, so it's cut off.\n\n" +
                         "This is part of the device's own software, so it can't simply be uninstalled. " +
                         "Your options, easiest first:\n" +
-                        "1. Keep Devil Shield on. It keeps this app cut off.\n" +
+                        "1. Tap \"Cut off this app\" so it can't reach the internet at all.\n" +
                         "2. Open App settings and tap Disable, if your device allows it.\n" +
                         "3. Ask the seller for clean, official software for the device.\n" +
                         "4. If it keeps happening, consider a certified box such as Google TV, Fire TV or Nvidia Shield.",
-                    listOf(settings, Action("I've dealt with it") { a -> ActivityLog.clearFlag(a, pkg); a.recreate() })
+                    listOf(cutOff(pkg, name), settings, Action("I've dealt with it") { a -> ActivityLog.clearFlag(a, pkg); a.recreate() })
                 )
             } else {
                 out += Finding(
@@ -99,6 +99,7 @@ object HealthCheck {
                         "If you don't recognise this app or don't need it, removing it is the safest choice.",
                     listOf(
                         Action("Remove $name") { uninstall(it, pkg) },
+                        cutOff(pkg, name),
                         settings,
                         Action("Keep it") { a -> ActivityLog.clearFlag(a, pkg); a.recreate() }
                     )
@@ -127,6 +128,17 @@ object HealthCheck {
                         a.recreate()
                     }
                 )
+            )
+        }
+
+        // Open Wi-Fi
+        if (WifiSafety.openWifi) {
+            val p = Prefs(ctx)
+            out += Finding(
+                Level.WATCH, "This Wi-Fi has no password",
+                if (p.vpnOn) "Your VPN is on, so you're private here." else
+                    "People nearby could see what you do. Add your VPN under \"Your VPN\" and Devil Shield will " +
+                        "switch it on automatically on Wi-Fi like this."
             )
         }
 
@@ -264,6 +276,15 @@ object HealthCheck {
         }
 
         return out.sortedBy { it.level.ordinal.let { o -> 2 - o } }
+    }
+
+    private fun cutOff(pkg: String, name: String): Action = Action("Cut off this app") { a ->
+        val p = Prefs(a)
+        p.blockedApps = p.blockedApps + pkg
+        Blocklists.refreshSettings(a)
+        android.widget.Toast.makeText(a, "$name is cut off from the internet.", android.widget.Toast.LENGTH_LONG).show()
+        ActivityLog.clearFlag(a, pkg)
+        a.recreate()
     }
 
     private fun uninstall(a: Activity, pkg: String) {

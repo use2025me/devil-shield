@@ -129,6 +129,12 @@ object Blocklists {
         private set
     @Volatile var familyOn = false
         private set
+    /** Apps cut off from the internet by the person. */
+    @Volatile var blockedApps: Set<String> = emptySet()
+        private set
+    /** Goes up whenever settings change, so remembered decisions get refreshed. */
+    @Volatile var settingsVersion = 0
+        private set
     @Volatile var updating = false
         private set
 
@@ -144,6 +150,8 @@ object Blocklists {
         val p = Prefs(ctx)
         trusted = p.trusted
         familyOn = p.familyFilter
+        blockedApps = p.blockedApps
+        settingsVersion++
         if (familyOn && family.isEmpty()) family = readSet(file(ctx, FAMILY_FILE))
         if (!familyOn) family = DomainSet.EMPTY
     }

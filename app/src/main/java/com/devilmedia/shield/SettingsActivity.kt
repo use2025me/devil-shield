@@ -69,6 +69,19 @@ class SettingsActivity : ShieldScreen() {
             }
         }
 
+        // Auto-VPN on open Wi-Fi
+        val wifi = card()
+        text("Open Wi-Fi protection", 18f, Brand.TEXT, bold = true, parent = wifi)
+        text(
+            "On Wi-Fi with no password (cafés, hotels), Devil Shield lets you know, and switches your VPN on " +
+                "automatically if you've added one under \"Your VPN\". Needs Android 12 or newer.",
+            parent = wifi
+        )
+        button(if (p.autoVpn) "Auto-VPN on open Wi-Fi: on (tap to turn off)" else "Auto-VPN on open Wi-Fi: off (tap to turn on)", parent = wifi) {
+            p.autoVpn = !p.autoVpn
+            render()
+        }
+
         // Notices
         val notices = card()
         text("Gentle notices", 18f, Brand.TEXT, bold = true, parent = notices)

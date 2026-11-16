@@ -89,6 +89,7 @@ class ShieldVpnService : VpnService() {
         }
     }
     private var installReceiverOn = false
+    private var wifiWatch: ConnectivityManager.NetworkCallback? = null
 
     // Built-in VPN (when the person has imported a VPN file and switched it on).
     @Volatile private var tunnel: WgTunnel? = null
@@ -176,6 +177,8 @@ class ShieldVpnService : VpnService() {
         Thread({ readLoop(fd) }, "shield-reader").start()
         StatusViews.refresh(this)
 
+        wifiWatch = WifiSafety.watch(this)
+
         try {
             val filter = IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply { addDataScheme("package") }
             ContextCompat.registerReceiver(this, installReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
@@ -215,8 +218,8 @@ class ShieldVpnService : VpnService() {
                         break
                     }
                 } else if (t != null) {
-                    // Everything else goes straight into the VPN.
-                    t.send(buf, n)
+                    // Everything else goes straight into the VPN, unless it's from an app that's cut off.
+                    if (Blocklists.blockedApps.isEmpty() || !flowIsCutOff(buf, n)) t.send(buf, n)
                 }
             }
         } catch (_: Exception) {
@@ -232,6 +235,19 @@ class ShieldVpnService : VpnService() {
         }
         val (name, end) = question
         ActivityLog.recordCheck()
+
+        // Apps the person has cut off can't look anything up.
+        if (Blocklists.blockedApps.isNotEmpty()) {
+            val owner = ownerOf(q)
+            if (owner.second.isNotEmpty() && isCutOff(owner.second)) {
+                write(Packets.reply(q, Packets.blockedAnswer(q.dns, end)))
+                ActivityLog.recordBlock(
+                    this, LogEntry(System.currentTimeMillis(), name, owner.first, owner.second, false, cut = true)
+                )
+                return
+            }
+        }
+
         val verdict = Blocklists.check(name)
         if (verdict == Blocklists.Verdict.ALLOW) {
             forward(q)
@@ -280,6 +296,72 @@ class ShieldVpnService : VpnService() {
                 // Try the next server.
             }
         }
+    }
+
+    private fun isCutOff(pkg: String): Boolean {
+        val blocked = Blocklists.blockedApps
+        if (pkg in blocked) return true
+        // Apps can share an ID; cut off if any app sharing it is cut off.
+        return try {
+            val uid = packageManager.getApplicationInfo(pkg, 0).uid
+            packageManager.getPackagesForUid(uid)?.any { it in blocked } == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // Remembers, per connection, whether it belongs to a cut-off app (VPN mode only).
+    private val flowDecisions = ConcurrentHashMap<String, Boolean>()
+    private val uidDecisions = ConcurrentHashMap<Int, Boolean>()
+    @Volatile private var decisionsVersion = -1
+
+    private fun flowIsCutOff(pkt: ByteArray, len: Int): Boolean {
+        if (Build.VERSION.SDK_INT < 29 || len < 20) return false
+        if (decisionsVersion != Blocklists.settingsVersion) {
+            flowDecisions.clear()
+            uidDecisions.clear()
+            decisionsVersion = Blocklists.settingsVersion
+        }
+        val version = (pkt[0].toInt() shr 4) and 0xF
+        val proto: Int
+        val hdr: Int
+        val src: ByteArray
+        val dst: ByteArray
+        if (version == 4) {
+            hdr = (pkt[0].toInt() and 0xF) * 4
+            proto = pkt[9].toInt() and 0xFF
+            src = pkt.copyOfRange(12, 16)
+            dst = pkt.copyOfRange(16, 20)
+        } else if (version == 6 && len >= 40) {
+            hdr = 40
+            proto = pkt[6].toInt() and 0xFF
+            src = pkt.copyOfRange(8, 24)
+            dst = pkt.copyOfRange(24, 40)
+        } else {
+            return false
+        }
+        if ((proto != 6 && proto != 17) || len < hdr + 4) return false
+        val sport = ((pkt[hdr].toInt() and 0xFF) shl 8) or (pkt[hdr + 1].toInt() and 0xFF)
+        val dport = ((pkt[hdr + 2].toInt() and 0xFF) shl 8) or (pkt[hdr + 3].toInt() and 0xFF)
+        val key = "$proto|${src.contentToString()}|$sport|${dst.contentToString()}|$dport"
+        flowDecisions[key]?.let { return it }
+        val blocked = try {
+            val cm = getSystemService(ConnectivityManager::class.java)
+            val uid = cm.getConnectionOwnerUid(
+                proto,
+                InetSocketAddress(InetAddress.getByAddress(src), sport),
+                InetSocketAddress(InetAddress.getByAddress(dst), dport)
+            )
+            if (uid < 0) false
+            else uidDecisions.getOrPut(uid) {
+                packageManager.getPackagesForUid(uid)?.any { it in Blocklists.blockedApps } == true
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (flowDecisions.size > 20_000) flowDecisions.clear()
+        flowDecisions[key] = blocked
+        return blocked
     }
 
     /** A packet arriving from the VPN server, on its way to an app. */
@@ -356,6 +438,8 @@ class ShieldVpnService : VpnService() {
         workers = null
         scheduler?.shutdownNow()
         scheduler = null
+        WifiSafety.unwatch(this, wifiWatch)
+        wifiWatch = null
         if (installReceiverOn) {
             try {
                 unregisterReceiver(installReceiver)

@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Turns protection back on after the device restarts -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Lets the health check look at the apps on this device -->
@@ -45,6 +46,8 @@
         <activity android:name=".WelcomeActivity" android:exported="false" />
         <activity android:name=".HealthActivity" android:exported="false" />
         <activity android:name=".VpnActivity" android:exported="false" />
+        <activity android:name=".AppsActivity" android:exported="false" />
+        <activity android:name=".NetworkScanActivity" android:exported="false" />
         <activity android:name=".ActivityLogActivity" android:exported="false" />
         <activity android:name=".TrustedActivity" android:exported="false" />
         <activity android:name=".SettingsActivity" android:exported="false" />

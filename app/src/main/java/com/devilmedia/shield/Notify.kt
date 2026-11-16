@@ -14,6 +14,7 @@ import android.os.Build
 object Notify {
     private const val CH_APPS = "apps"
     private const val CH_SUMMARY = "summary"
+    private const val CH_WIFI = "wifi"
     const val ID_SUMMARY = 1
 
     fun canNotify(ctx: Context): Boolean =
@@ -28,10 +29,16 @@ object Notify {
         nm.createNotificationChannel(
             NotificationChannel(CH_SUMMARY, "Weekly summary", NotificationManager.IMPORTANCE_LOW)
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_WIFI, "Wi-Fi safety", NotificationManager.IMPORTANCE_DEFAULT)
+        )
     }
 
     fun newApp(ctx: Context, pkg: String, title: String, text: String) =
         show(ctx, 1000 + (pkg.hashCode() and 0xFFFF), CH_APPS, title, text, HealthActivity::class.java)
+
+    fun wifi(ctx: Context, text: String) =
+        show(ctx, 2, CH_WIFI, "Open Wi-Fi", text, MainActivity::class.java)
 
     fun summary(ctx: Context, text: String) =
         show(ctx, ID_SUMMARY, CH_SUMMARY, "Devil Shield this week", text, MainActivity::class.java)

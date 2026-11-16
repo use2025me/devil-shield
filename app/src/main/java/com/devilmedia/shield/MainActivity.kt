@@ -60,6 +60,8 @@ class MainActivity : ShieldScreen() {
         gap(4)
         button("Health check") { startActivity(Intent(this, HealthActivity::class.java)) }
         button("Your VPN") { startActivity(Intent(this, VpnActivity::class.java)) }
+        button("Network scan") { startActivity(Intent(this, NetworkScanActivity::class.java)) }
+        button("App controls") { startActivity(Intent(this, AppsActivity::class.java)) }
         button("Activity") { startActivity(Intent(this, ActivityLogActivity::class.java)) }
         button("Trusted sites") { startActivity(Intent(this, TrustedActivity::class.java)) }
         button("Settings") { startActivity(Intent(this, SettingsActivity::class.java)) }

@@ -17,6 +17,9 @@ By Devil Media Group.
 - **New-app check.** Newly installed apps from outside an app store that ask for strong abilities get a gentle notice and appear in the health check.
 - **Quick switch and widget.** A Devil Shield switch in the pull-down quick settings, and a home-screen widget showing "Protected".
 - **Welcome screen** and an optional **weekly summary** notice.
+- **App controls.** Cut any app off from the internet (fully in VPN mode; by blocking its lookups otherwise). Ideal for hidden apps built into a box.
+- **Network scan.** Finds devices on the home network and flags open Telnet, open ADB, cameras and router tips. Checks a few common ports only; never tries to log in.
+- **Open Wi-Fi protection.** Warns on Wi-Fi with no password and switches the imported VPN on automatically (Android 12+).
 - **Light on memory.** Lists are stored as 8-byte fingerprints, so 200,000 sites use about 1.6 MB.
 
 ## Built-in VPN (version 2)

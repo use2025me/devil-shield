@@ -73,6 +73,21 @@ class Prefs(context: Context) {
         get() = p.getBoolean("vpn_on", false)
         set(v) = p.edit().putBoolean("vpn_on", v).apply()
 
+    /** Apps the person has cut off from the internet. */
+    var blockedApps: Set<String>
+        get() = p.getStringSet("blocked_apps", emptySet())?.toSet() ?: emptySet()
+        set(v) = p.edit().putStringSet("blocked_apps", HashSet(v)).apply()
+
+    /** Switch the VPN on automatically on open (no password) Wi-Fi. On by default. */
+    var autoVpn: Boolean
+        get() = p.getBoolean("auto_vpn", true)
+        set(v) = p.edit().putBoolean("auto_vpn", v).apply()
+
+    /** True while the VPN is on only because of an open Wi-Fi (so it can be switched back off). */
+    var autoVpnEngaged: Boolean
+        get() = p.getBoolean("auto_vpn_engaged", false)
+        set(v) = p.edit().putBoolean("auto_vpn_engaged", v).apply()
+
     /** Newly installed apps that asked for strong permissions, waiting for a look. */
     var newAppFlags: Set<String>
         get() = p.getStringSet("new_app_flags", emptySet())?.toSet() ?: emptySet()

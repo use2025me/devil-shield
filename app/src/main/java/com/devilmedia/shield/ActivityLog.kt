@@ -13,7 +13,9 @@ class LogEntry(
     val domain: String,
     val app: String,
     val pkg: String,
-    val family: Boolean
+    val family: Boolean,
+    /** True when blocked because the person cut this app off. */
+    val cut: Boolean = false
 )
 
 /**
@@ -61,7 +63,7 @@ object ActivityLog {
         blockedToday++
         entries.addFirst(e)
         while (entries.size > MAX) entries.removeLast()
-        if (!e.family) {
+        if (!e.family && !e.cut) {
             threatsBlocked++
             flagged[e.pkg] = (flagged[e.pkg] ?: 0) + 1
             flaggedNames[e.pkg] = e.app
@@ -98,7 +100,7 @@ object ActivityLog {
             for (i in 0 until arr.length()) {
                 val e = arr.getJSONObject(i)
                 entries.addLast(
-                    LogEntry(e.optLong("t"), e.optString("d"), e.optString("a"), e.optString("p"), e.optBoolean("f"))
+                    LogEntry(e.optLong("t"), e.optString("d"), e.optString("a"), e.optString("p"), e.optBoolean("f"), e.optBoolean("c"))
                 )
             }
             val fl = o.optJSONObject("flagged")
@@ -125,7 +127,7 @@ object ActivityLog {
             for (e in entries) {
                 arr.put(
                     JSONObject().put("t", e.time).put("d", e.domain).put("a", e.app)
-                        .put("p", e.pkg).put("f", e.family)
+                        .put("p", e.pkg).put("f", e.family).put("c", e.cut)
                 )
             }
             o.put("entries", arr)

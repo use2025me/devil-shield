@@ -31,12 +31,16 @@ class ActivityLogActivity : ShieldScreen() {
         }
 
         for (e in entries.take(150)) {
-            val c = card { offerTrust(e.domain) }
-            val what = if (e.family) "Blocked by the family filter" else "Blocked a known threat"
+            val c = card { if (e.cut) toast("Change this under App controls.") else offerTrust(e.domain) }
+            val what = when {
+                e.cut -> "Blocked: you cut off this app"
+                e.family -> "Blocked by the family filter"
+                else -> "Blocked a known threat"
+            }
             text(what, 16f, if (e.family) Brand.MUTED else Brand.TEXT, bold = true, parent = c)
             text(e.domain, 15f, Brand.MUTED, parent = c)
             text("${e.app} · ${timeAgo(e.time)}", 13f, Brand.GREY, parent = c)
-            text("Blocked by mistake? Tap here to trust it.", 13f, Brand.GREEN, parent = c)
+            if (!e.cut) text("Blocked by mistake? Tap here to trust it.", 13f, Brand.GREEN, parent = c)
         }
     }
 
