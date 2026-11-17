@@ -1,19 +1,21 @@
-# CodeQL: reads Devil Shield's code on every change (and weekly) looking for common
-# security mistakes. Results appear in the repo's Security tab.
+# CodeQL: GitHub's free security scanner. Reads Devil Shield's code on every change
+# (and once a week) and reports common security mistakes under the Security tab.
 name: CodeQL security scan
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
   pull_request:
     branches: [main]
   schedule:
-    - cron: "17 4 * * 1"
+    - cron: "17 3 * * 1"
 
 permissions:
-  actions: read
   contents: read
   security-events: write
+  actions: read
 
 jobs:
   analyze:

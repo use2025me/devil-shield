@@ -1,5 +1,5 @@
-# Dependabot: watches the building blocks Devil Shield uses and suggests safe updates
-# when a newer version (or a security fix) is released.
+# Dependabot: watches the building blocks Devil Shield uses and suggests updates,
+# including security fixes, once a week.
 version: 2
 updates:
   - package-ecosystem: "gradle"
@@ -7,7 +7,6 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
