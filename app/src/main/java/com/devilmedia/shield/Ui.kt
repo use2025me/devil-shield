@@ -88,14 +88,14 @@ fun timeAgo(t: Long): String {
 abstract class ShieldScreen : Activity() {
     protected lateinit var body: LinearLayout
 
-    protected fun setupScreen(title: String?) {
+    protected fun setupScreen(title: String?, wide: Boolean = false) {
         val scroll = ScrollView(this)
         scroll.setBackgroundColor(Brand.BG)
         scroll.isFillViewport = true
         body = LinearLayout(this)
         body.orientation = LinearLayout.VERTICAL
         val w = resources.displayMetrics.widthPixels
-        val maxW = dp(680)
+        val maxW = if (wide) dp(1100) else dp(680)
         val side = if (w > maxW + dp(48)) (w - maxW) / 2 else dp(20)
         body.setPadding(side, dp(28), side, dp(36))
         scroll.addView(body, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
