@@ -24,7 +24,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # Starts a real WireGuard server on the build machine, so the built-in VPN is tested
       # against the real thing before every release.
