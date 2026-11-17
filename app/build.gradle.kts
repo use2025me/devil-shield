@@ -75,6 +75,6 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     // Well-tested encryption library used for the built-in WireGuard VPN.
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.87")
     testImplementation("junit:junit:4.13.2")
 }
