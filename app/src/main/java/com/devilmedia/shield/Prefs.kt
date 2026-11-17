@@ -73,6 +73,16 @@ class Prefs(context: Context) {
         get() = p.getBoolean("vpn_on", false)
         set(v) = p.edit().putBoolean("vpn_on", v).apply()
 
+    /** Block fake sites pretending to be couriers, banks and services. On by default. */
+    var blockLookalikes: Boolean
+        get() = p.getBoolean("block_lookalikes", true)
+        set(v) = p.edit().putBoolean("block_lookalikes", v).apply()
+
+    /** Automatic scam warnings on incoming messages (needs notification access). */
+    var scamWatch: Boolean
+        get() = p.getBoolean("scam_watch", false)
+        set(v) = p.edit().putBoolean("scam_watch", v).apply()
+
     /** Companion mode: background check-ups that work alongside another VPN. */
     var companion: Boolean
         get() = p.getBoolean("companion", false)

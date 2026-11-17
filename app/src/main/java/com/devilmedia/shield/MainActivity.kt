@@ -58,6 +58,7 @@ class MainActivity : ShieldScreen() {
 
         vpnLine = text("", 14f, Brand.MUTED, center = true)
         gap(4)
+        button("Scam protection") { startActivity(Intent(this, ScamHubActivity::class.java)) }
         button("Health check") { startActivity(Intent(this, HealthActivity::class.java)) }
         button("Your VPN") { startActivity(Intent(this, VpnActivity::class.java)) }
         button("Network scan") { startActivity(Intent(this, NetworkScanActivity::class.java)) }

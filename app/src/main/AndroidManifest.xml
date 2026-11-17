@@ -48,6 +48,36 @@
         <activity android:name=".VpnActivity" android:exported="false" />
         <activity android:name=".AppsActivity" android:exported="false" />
         <activity android:name=".RemoveDataActivity" android:exported="false" />
+        <activity android:name=".ScamHubActivity" android:exported="false" />
+        <activity android:name=".AccountSafetyActivity" android:exported="false" />
+        <activity android:name=".CallSafetyActivity" android:exported="false" />
+        <!-- Share a message to Devil Shield, or select text and choose "Check for scams" -->
+        <activity
+            android:name=".ScamCheckActivity"
+            android:exported="true"
+            android:label="Check for scams"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        <!-- Automatic scam warnings (only if the person allows notification access) -->
+        <service
+            android:name=".ScamWatchService"
+            android:exported="true"
+            android:label="Devil Shield scam warnings"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <activity android:name=".CompanionActivity" android:exported="false" />
         <service
             android:name=".GuardJob"

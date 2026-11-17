@@ -129,6 +129,9 @@ object Blocklists {
         private set
     @Volatile var familyOn = false
         private set
+    /** Block fake brand sites (on by default). */
+    @Volatile var lookalikesOn = true
+        private set
     /** Apps cut off from the internet by the person. */
     @Volatile var blockedApps: Set<String> = emptySet()
         private set
@@ -141,6 +144,8 @@ object Blocklists {
     fun check(domain: String): Verdict {
         if (Domains.matches(domain, trusted)) return Verdict.ALLOW
         if (Domains.matches(domain, security)) return Verdict.THREAT
+        // Fake sites pretending to be a courier, bank or service (e.g. "dpd-redelivery-ie.com").
+        if (lookalikesOn && ScamCheck.impersonates(domain, strict = true) != null) return Verdict.THREAT
         if (familyOn && Domains.matches(domain, family)) return Verdict.FAMILY
         return Verdict.ALLOW
     }
@@ -151,9 +156,25 @@ object Blocklists {
         trusted = p.trusted
         familyOn = p.familyFilter
         blockedApps = p.blockedApps
+        lookalikesOn = p.blockLookalikes
         settingsVersion++
         if (familyOn && family.isEmpty()) family = readSet(file(ctx, FAMILY_FILE))
         if (!familyOn) family = DomainSet.EMPTY
+    }
+
+    @Volatile private var loadingCache = false
+
+    /** Loads the saved lists in the background if they aren't loaded yet (for the scam checker). */
+    fun loadCachedAsync(ctx: Context) {
+        if (security.isNotEmpty() || loadingCache) return
+        loadingCache = true
+        Thread {
+            try {
+                loadCached(ctx)
+            } finally {
+                loadingCache = false
+            }
+        }.start()
     }
 
     /** Loads the lists saved from last time, so protection starts straight away. */

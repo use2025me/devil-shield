@@ -16,6 +16,7 @@ object Notify {
     private const val CH_SUMMARY = "summary"
     private const val CH_WIFI = "wifi"
     private const val CH_REMOVAL = "removal"
+    private const val CH_SCAM = "scam"
     const val ID_SUMMARY = 1
 
     fun canNotify(ctx: Context): Boolean =
@@ -36,6 +37,9 @@ object Notify {
         nm.createNotificationChannel(
             NotificationChannel(CH_REMOVAL, "Data removal reminders", NotificationManager.IMPORTANCE_LOW)
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_SCAM, "Scam warnings", NotificationManager.IMPORTANCE_HIGH)
+        )
     }
 
     fun newApp(ctx: Context, pkg: String, title: String, text: String) =
@@ -44,19 +48,29 @@ object Notify {
     fun wifi(ctx: Context, text: String) =
         show(ctx, 2, CH_WIFI, "Open Wi-Fi", text, MainActivity::class.java)
 
+    /** Warning about a message that looks like a scam. Tapping it shows the full check. */
+    fun scam(ctx: Context, key: Int, text: String, message: String) =
+        show(ctx, 5000 + (key and 0xFFFF), CH_SCAM, "Possible scam message", text, ScamCheckActivity::class.java,
+            ScamCheckActivity.EXTRA_TEXT to message)
+
     fun removal(ctx: Context, text: String) =
         show(ctx, 3, CH_REMOVAL, "Remove my data", text, RemoveDataActivity::class.java)
 
     fun summary(ctx: Context, text: String) =
         show(ctx, ID_SUMMARY, CH_SUMMARY, "Devil Shield this week", text, MainActivity::class.java)
 
-    private fun show(ctx: Context, id: Int, channel: String, title: String, text: String, target: Class<*>) {
+    private fun show(
+        ctx: Context, id: Int, channel: String, title: String, text: String, target: Class<*>,
+        extra: Pair<String, String>? = null
+    ) {
         if (!canNotify(ctx)) return
         try {
             channels(ctx)
             val pi = PendingIntent.getActivity(
                 ctx, id,
-                Intent(ctx, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                Intent(ctx, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).also { i ->
+                    if (extra != null) i.putExtra(extra.first, extra.second)
+                },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             val n = Notification.Builder(ctx, channel)
