@@ -6,6 +6,6 @@
     <color name="ds_red">#FFC8102E</color>
     <color name="ds_red_light">#FFFF6B7D</color>
     <color name="ds_green">#FF3FB984</color>
-    <color name="ds_icon_bg">#FF1B1C1F</color>
+    <color name="ds_icon_bg">#FF0B0B0C</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

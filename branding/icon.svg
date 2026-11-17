@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF3B30"/>
+      <stop offset="1" stop-color="#B8000E"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF3B30"/>
+      <stop offset="1" stop-color="#C8101E"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0B0B0C"/>
+  <!-- horns -->
+  <path d="M166 178 C148 150 142 124 150 92 C170 116 198 136 226 148 Z" fill="url(#horn)"/>
+  <path d="M346 178 C364 150 370 124 362 92 C342 116 314 136 286 148 Z" fill="url(#horn)"/>
+  <!-- shield -->
+  <g transform="translate(106 118) scale(12.5)">
+    <path d="M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5l-9,-4z" fill="url(#red)"/>
+    <path d="M10,17l-4,-4 1.41,-1.41L10,14.17l6.59,-6.59L18,9l-8,8z" fill="#FFFFFF"/>
+  </g>
+</svg>
