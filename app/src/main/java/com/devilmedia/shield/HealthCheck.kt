@@ -265,7 +265,12 @@ object HealthCheck {
         }
 
         // Private DNS can go around Devil Shield
-        if (Build.VERSION.SDK_INT >= 28 && globalString(ctx, "private_dns_mode") == "hostname") {
+        if (Build.VERSION.SDK_INT >= 28 && CompanionMode.securityDnsOn(ctx) && !ShieldVpnService.running) {
+            out += Finding(
+                Level.GOOD, "Companion protection is on",
+                "Private DNS is using a security lookup service that blocks known malware and scam sites, even with another VPN."
+            )
+        } else if (Build.VERSION.SDK_INT >= 28 && globalString(ctx, "private_dns_mode") == "hostname") {
             val host = globalString(ctx, "private_dns_specifier") ?: "another service"
             out += Finding(
                 Level.WATCH, "Private DNS is set",

@@ -73,6 +73,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("vpn_on", false)
         set(v) = p.edit().putBoolean("vpn_on", v).apply()
 
+    /** Companion mode: background check-ups that work alongside another VPN. */
+    var companion: Boolean
+        get() = p.getBoolean("companion", false)
+        set(v) = p.edit().putBoolean("companion", v).apply()
+
     /** Apps the person has cut off from the internet. */
     var blockedApps: Set<String>
         get() = p.getStringSet("blocked_apps", emptySet())?.toSet() ?: emptySet()

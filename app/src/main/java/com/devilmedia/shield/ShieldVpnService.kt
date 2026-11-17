@@ -196,6 +196,7 @@ class ShieldVpnService : VpnService() {
         s.scheduleWithFixedDelay({
             Blocklists.updateIfStale(this)
             WeeklySummary.maybeSend(this)
+            Removals.remindIfDue(this)
         }, 15, 15, TimeUnit.MINUTES)
     }
 

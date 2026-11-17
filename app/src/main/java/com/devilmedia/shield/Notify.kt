@@ -15,6 +15,7 @@ object Notify {
     private const val CH_APPS = "apps"
     private const val CH_SUMMARY = "summary"
     private const val CH_WIFI = "wifi"
+    private const val CH_REMOVAL = "removal"
     const val ID_SUMMARY = 1
 
     fun canNotify(ctx: Context): Boolean =
@@ -32,6 +33,9 @@ object Notify {
         nm.createNotificationChannel(
             NotificationChannel(CH_WIFI, "Wi-Fi safety", NotificationManager.IMPORTANCE_DEFAULT)
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_REMOVAL, "Data removal reminders", NotificationManager.IMPORTANCE_LOW)
+        )
     }
 
     fun newApp(ctx: Context, pkg: String, title: String, text: String) =
@@ -39,6 +43,9 @@ object Notify {
 
     fun wifi(ctx: Context, text: String) =
         show(ctx, 2, CH_WIFI, "Open Wi-Fi", text, MainActivity::class.java)
+
+    fun removal(ctx: Context, text: String) =
+        show(ctx, 3, CH_REMOVAL, "Remove my data", text, RemoveDataActivity::class.java)
 
     fun summary(ctx: Context, text: String) =
         show(ctx, ID_SUMMARY, CH_SUMMARY, "Devil Shield this week", text, MainActivity::class.java)

@@ -47,6 +47,12 @@
         <activity android:name=".HealthActivity" android:exported="false" />
         <activity android:name=".VpnActivity" android:exported="false" />
         <activity android:name=".AppsActivity" android:exported="false" />
+        <activity android:name=".RemoveDataActivity" android:exported="false" />
+        <activity android:name=".CompanionActivity" android:exported="false" />
+        <service
+            android:name=".GuardJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <activity android:name=".NetworkScanActivity" android:exported="false" />
         <activity android:name=".ActivityLogActivity" android:exported="false" />
         <activity android:name=".TrustedActivity" android:exported="false" />

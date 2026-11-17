@@ -62,6 +62,8 @@ class MainActivity : ShieldScreen() {
         button("Your VPN") { startActivity(Intent(this, VpnActivity::class.java)) }
         button("Network scan") { startActivity(Intent(this, NetworkScanActivity::class.java)) }
         button("App controls") { startActivity(Intent(this, AppsActivity::class.java)) }
+        button("Remove my data") { startActivity(Intent(this, RemoveDataActivity::class.java)) }
+        button("Companion mode (use with another VPN)") { startActivity(Intent(this, CompanionActivity::class.java)) }
         button("Activity") { startActivity(Intent(this, ActivityLogActivity::class.java)) }
         button("Trusted sites") { startActivity(Intent(this, TrustedActivity::class.java)) }
         button("Settings") { startActivity(Intent(this, SettingsActivity::class.java)) }
@@ -120,7 +122,7 @@ class MainActivity : ShieldScreen() {
         } else if (otherVpnActive()) {
             circle.text = "Another VPN\nis running"
             message.text = "Another VPN app (like Surfshark) is on, and Android only allows one at a time. " +
-                "You can still use the Health check below, or import your VPN under \"Your VPN\" to have both in one app."
+                "You can still use the Health check below, set up \"Companion mode\" to keep blocking threats alongside it, or import your VPN under \"Your VPN\" to have both in one app."
             toggle.text = "Use Devil Shield instead"
         } else {
             circle.text = "Protection\nis off"

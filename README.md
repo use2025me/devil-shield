@@ -19,6 +19,8 @@ By Devil Media Group.
 - **Welcome screen** and an optional **weekly summary** notice.
 - **App controls.** Cut any app off from the internet (fully in VPN mode; by blocking its lookups otherwise). Ideal for hidden apps built into a box.
 - **Network scan.** Finds devices on the home network and flags open Telnet, open ADB, cameras and router tips. Checks a few common ports only; never tries to log in.
+- **Remove my data.** Writes GDPR requests (delete my data, what do you have on me, stop marketing me) with name, email and phone filled in, opens the email app, tracks replies, sends reminders after a month and builds a complaint summary for Ireland's Data Protection Commission. Includes official removal pages for data companies (192.com, Acxiom, Experian Marketing Services) and Google's removal tools.
+- **Companion mode.** For people who keep their own VPN app on: guided setup of Android's Private DNS with a security lookup service (Quad9 or Cloudflare security) plus background check-ups (new apps, open Wi-Fi, removal reminders) that don't need the VPN slot.
 - **Open Wi-Fi protection.** Warns on Wi-Fi with no password and switches the imported VPN on automatically (Android 12+).
 - **Light on memory.** Lists are stored as 8-byte fingerprints, so 200,000 sites use about 1.6 MB.
 
